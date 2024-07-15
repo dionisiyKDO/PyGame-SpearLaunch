@@ -5,9 +5,9 @@ RED = (255, 0, 0)
 CRIMSON = (220, 20, 60)
 BLUE = (0, 0, 255)
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-FPS = 60
+SCREEN_WIDTH = 1600
+SCREEN_HEIGHT = 900
+FPS = 144
 
 # Main character properties
 CHARACTER_POS = [100, SCREEN_HEIGHT - 100]  # Changed to list for mutable position

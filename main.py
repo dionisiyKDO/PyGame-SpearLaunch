@@ -132,15 +132,16 @@ def handle_events(character, spear):
             spear.throw()
             zoom_level = 1.0
 
+    delta_time = clock.get_time() / 10.0
     keys = pygame.key.get_pressed()
     if keys[pygame.K_a]:
-        character.move(-CHARACTER_SPEED, 0)
+        character.move(-CHARACTER_SPEED * delta_time, 0)
     if keys[pygame.K_d]:
-        character.move(CHARACTER_SPEED, 0)
+        character.move(CHARACTER_SPEED * delta_time, 0)
     if keys[pygame.K_w]:
-        character.move(0, -CHARACTER_SPEED)
+        character.move(0, -CHARACTER_SPEED * delta_time)
     if keys[pygame.K_s]:
-        character.move(0, CHARACTER_SPEED)
+        character.move(0, CHARACTER_SPEED * delta_time)
 
     return spear, True
 
@@ -159,6 +160,9 @@ def main():
         screen.fill(WHITE)
         character.draw(screen)
 
+        
+        if all(dummy.hit == True for dummy in dummies):
+            dummies = [Dummy(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_DUMMIES)]
         for dummy in dummies:
             dummy.draw(screen)
             if spear and spear.thrown:
