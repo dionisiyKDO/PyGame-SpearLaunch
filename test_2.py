@@ -81,7 +81,7 @@ class Spear:
     def draw(self, screen):
         spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
         spear_surface.fill(SPEAR_COLOR)
-        rotated_spear = pygame.transform.rotate(spear_surface, -self.angle)
+        rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
         screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
 
 def draw_character(screen):

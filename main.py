@@ -41,7 +41,6 @@ program = ctx.program(
     #version 330 core
     
     uniform sampler2D tex;
-    uniform float time;
     
     in vec2 uv;
     out vec4 out_color;
