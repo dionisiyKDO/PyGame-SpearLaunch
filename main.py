@@ -1,13 +1,13 @@
 import sys
 import math
 import time
+import random
 
 from settings import *
 
 import pygame
 import moderngl
 import numpy as np
-
 
 pygame.init()
 
@@ -58,16 +58,6 @@ class Spear:
     def follow_cursor(self, cursor_x, cursor_y):
         self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
 
-    # def throw(self):
-    #     self.vx = math.cos(math.radians(self.angle)) * self.speed
-    #     self.vy = -math.sin(math.radians(self.angle)) * self.speed
-    #     self.thrown = True
-
-    # def update(self):
-    #     if self.thrown:
-    #         self.x += self.vx
-    #         self.y += self.vy
-            
     def throw(self):
         initial_speed = self.speed * 4.0  # Example: starting with double the speed
         self.vx = math.cos(math.radians(self.angle)) * initial_speed
@@ -81,22 +71,41 @@ class Spear:
                 deceleration = 0.1  # Adjust as needed
                 self.vx *= (1 - deceleration)
                 self.vy *= (1 - deceleration)
-                print(f"Velocity (vx, vy): ({self.vx}, {self.vy})")
             else:
                 # Once velocity reaches or falls below self.speed, maintain steady speed
                 self.vx = math.cos(math.radians(self.angle)) * self.speed
                 self.vy = -math.sin(math.radians(self.angle)) * self.speed
-                print(f"Steady Velocity (vx, vy): ({self.vx}, {self.vy})")
 
             self.x += self.vx
             self.y += self.vy
-
 
     def draw(self, screen):
         spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
         spear_surface.fill(SPEAR_COLOR)
         rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
         screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
+
+
+class Dummy:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = DUMMY_RADIUS
+        self.color = DUMMY_COLOR
+        self.hit = False
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+
+    def check_collision(self, spear):
+        if not self.hit and spear.thrown:
+            distance = math.sqrt((self.x - spear.x)**2 + (self.y - spear.y)**2)
+            max_distance = spear.speed + self.radius
+            if distance <= max_distance:
+                self.hit = True
+                self.color = HIT_COLOR
+                print("Dummy hit!")
+                # Handle dummy hit logic here (e.g., score increment, visual effect)
 
 def draw_charge_indicator(screen, charge_value):
     charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
@@ -141,6 +150,7 @@ def main():
     running = True
     character = Character(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
     spear = None
+    dummies = [Dummy(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_DUMMIES)]
 
     while running:
         cursor_x, cursor_y = pygame.mouse.get_pos()
@@ -148,6 +158,11 @@ def main():
 
         screen.fill(WHITE)
         character.draw(screen)
+
+        for dummy in dummies:
+            dummy.draw(screen)
+            if spear and spear.thrown:
+                dummy.check_collision(spear)
 
         if spear:
             if not spear.thrown:
@@ -160,6 +175,7 @@ def main():
                 spear = None
 
         # Apply zoom effect
+        # TODO fix zooming
         zoomed_screen = apply_zoom(screen, zoom_level)
         screen.blit(zoomed_screen, (0, 0))
 

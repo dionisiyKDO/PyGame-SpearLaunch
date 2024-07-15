@@ -3,6 +3,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 CRIMSON = (220, 20, 60)
+BLUE = (0, 0, 255)
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
@@ -25,3 +26,10 @@ CHARGE_VALUE_MAX = 100
 # Zoom properties
 ZOOM_SCALE = 1.1  # Maximum zoom scale
 zoom_level = 1.0
+
+# Game properties
+NUM_DUMMIES = 10
+DUMMY_RADIUS = 20
+DUMMY_SPEED = 10
+DUMMY_COLOR = CRIMSON
+HIT_COLOR = BLUE
