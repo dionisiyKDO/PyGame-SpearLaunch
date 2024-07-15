@@ -1,44 +1,19 @@
-import pygame
-import math
 import sys
+import math
 import time
 
-# Initialize Pygame
+from settings import *
+
+import pygame
+import moderngl
+import numpy as np
+
+
 pygame.init()
 
-# Screen dimensions
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Flying Spear")
-
-# Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-
-# Clock and FPS
 clock = pygame.time.Clock()
-FPS = 60
-
-# Main character properties
-CHARACTER_POS = [100, SCREEN_HEIGHT - 100]  # Changed to list for mutable position
-CHARACTER_COLOR = BLACK
-CHARACTER_RADIUS = 5
-CHARACTER_SPEED = 5  # Movement speed of the character
-
-# Spear properties
-SPEAR_COLOR = BLACK
-SPEAR_WIDTH = 5
-SPEAR_HEIGHT = 50
-SPEAR_MAX_SPEED = 25
-CHARGE_TIME = 1.5  # Charge time in seconds
-
-# Zoom properties
-ZOOM_SCALE = 1.1  # Maximum zoom scale
-zoom_level = 1.0
-
-# Font
 font = pygame.font.Font(None, 36)
 
 class Spear:
