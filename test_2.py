@@ -22,9 +22,10 @@ clock = pygame.time.Clock()
 FPS = 60
 
 # Main character properties
-CHARACTER_POS = (100, SCREEN_HEIGHT - 100)
+CHARACTER_POS = [100, SCREEN_HEIGHT - 100]  # Changed to list for mutable position
 CHARACTER_COLOR = BLACK
 CHARACTER_RADIUS = 5
+CHARACTER_SPEED = 5  # Movement speed of the character
 
 # Spear properties
 SPEAR_COLOR = BLACK
@@ -106,6 +107,14 @@ def handle_events(spear):
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and spear and not spear.thrown:
             spear.throw()
             zoom_level = 1.0
+
+    # Keyboard controls for player character movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        CHARACTER_POS[0] -= CHARACTER_SPEED
+    if keys[pygame.K_RIGHT]:
+        CHARACTER_POS[0] += CHARACTER_SPEED
+
     return spear, True
 
 def main():
@@ -147,7 +156,6 @@ def main():
 
     pygame.quit()
     sys.exit()
-
 
 if __name__ == "__main__":
     main()
