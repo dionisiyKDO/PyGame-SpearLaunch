@@ -18,7 +18,7 @@ font = pygame.font.Font(None, 36)
 
 
 class Character:
-    def __init__(self, x = CHARACTER_POS[0], y = CHARACTER_POS[1]):
+    def __init__(self, x=CHARACTER_POS[0], y=CHARACTER_POS[1]):
         self.x = x
         self.y = y
 
@@ -42,6 +42,8 @@ class Spear:
         self.charge_start_time = None
         self.length = SPEAR_HEIGHT
         self.charge_value = 0
+        self.destroyed = False
+        self.destroy_time = None
 
     def start_charging(self):
         self.charge_start_time = time.time()
@@ -65,7 +67,7 @@ class Spear:
         self.thrown = True
 
     def update(self):
-        if self.thrown:
+        if self.thrown and not self.destroyed:
             if abs(self.vx) > self.speed or abs(self.vy) > self.speed:
                 # Apply deceleration to simulate slowing down after initial impulse
                 deceleration = 0.1  # Adjust as needed
@@ -80,10 +82,17 @@ class Spear:
             self.y += self.vy
 
     def draw(self, screen):
-        spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
-        spear_surface.fill(SPEAR_COLOR)
-        rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
-        screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
+        if self.destroyed and time.time() - self.destroy_time <= 1:
+            pygame.draw.circle(screen, GREY, (int(self.x), int(self.y)), 10)
+        elif not self.destroyed:
+            spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
+            spear_surface.fill(SPEAR_COLOR)
+            rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
+            screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
+        
+    def destroy(self):
+        self.destroyed = True
+        self.destroy_time = time.time()
 
 
 class Dummy:
@@ -98,14 +107,17 @@ class Dummy:
         pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
 
     def check_collision(self, spear):
-        if not self.hit and spear.thrown:
-            distance = math.sqrt((self.x - spear.x)**2 + (self.y - spear.y)**2)
+        if not self.hit and spear.thrown and not spear.destroyed:
+            distance = math.sqrt((self.x - spear.x) ** 2 + (self.y - spear.y) ** 2)
             max_distance = spear.speed + self.radius
             if distance <= max_distance:
                 self.hit = True
                 self.color = HIT_COLOR
                 print("Dummy hit!")
-                # Handle dummy hit logic here (e.g., score increment, visual effect)
+                spear.destroy()
+                return True
+        return False
+
 
 def draw_charge_indicator(screen, charge_value):
     charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
@@ -119,7 +131,8 @@ def apply_zoom(surface, scale):
     zoomed_surface = pygame.transform.smoothscale(surface, (int(width * scale), int(height * scale)))
     return zoomed_surface
 
-def handle_events(character, spear):
+
+def handle_events(character, spear=None):
     global zoom_level
 
     for event in pygame.event.get():
@@ -145,6 +158,7 @@ def handle_events(character, spear):
 
     return spear, True
 
+
 def main():
     global zoom_level
 
@@ -160,13 +174,13 @@ def main():
         screen.fill(WHITE)
         character.draw(screen)
 
-        
         if all(dummy.hit == True for dummy in dummies):
             dummies = [Dummy(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_DUMMIES)]
         for dummy in dummies:
             dummy.draw(screen)
             if spear and spear.thrown:
-                dummy.check_collision(spear)
+                if dummy.check_collision(spear):
+                    spear = None
 
         if spear:
             if not spear.thrown:
