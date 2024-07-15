@@ -1,88 +1,161 @@
-import sys
-from array import array
-
 import pygame
-import moderngl
+import math
+import sys
+import time
 
+# Initialize Pygame
 pygame.init()
 
-screen = pygame.display.set_mode((800, 600), pygame.OPENGL | pygame.DOUBLEBUF)
-display = pygame.Surface((800, 600))
-ctx = moderngl.create_context()
+# Screen dimensions
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Flying Spear")
 
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+
+# Clock and FPS
 clock = pygame.time.Clock()
+FPS = 60
 
+# Main character properties
+CHARACTER_POS = [100, SCREEN_HEIGHT - 100]  # Changed to list for mutable position
+CHARACTER_COLOR = BLACK
+CHARACTER_RADIUS = 5
+CHARACTER_SPEED = 5  # Movement speed of the character
 
-img = pygame.image.load("image.png")
-img.convert_alpha()
-img = pygame.transform.scale(img, (400, 400))
+# Spear properties
+SPEAR_COLOR = BLACK
+SPEAR_WIDTH = 5
+SPEAR_HEIGHT = 50
+SPEAR_MAX_SPEED = 25
+CHARGE_TIME = 1.5  # Charge time in seconds
 
-quad_buffer = ctx.buffer(array('f', [
-    # position (x, y), uv coords (x, y)
-    -1.0,  1.0, 0.0, 0.0, 
-     1.0,  1.0, 1.0, 0.0, 
-    -1.0, -1.0, 0.0, 1.0, 
-     1.0, -1.0, 1.0, 1.0, 
-]))
+# Zoom properties
+ZOOM_SCALE = 1.1  # Maximum zoom scale
+zoom_level = 1.0
 
-program = ctx.program(
-    vertex_shader = '''
-    #version 330 core
-    in vec2 in_vert;
-    in vec2 in_uv;
-    out vec2 uv;
-    void main() {
-        gl_Position = vec4(in_vert, 0.0, 1.0);
-        uv = in_uv;
-    }
-    ''',
-    
-    fragment_shader = '''
-    #version 330 core
-    
-    uniform sampler2D tex;
-    
-    in vec2 uv;
-    out vec4 out_color;
-    
-    void main() {
-        out_color = vec4(
-            texture(tex, uv).r, 
-            texture(tex, uv).g, 
-            texture(tex, uv).b, 
-            1.0);
-    }
-    '''
-)
-render_object = ctx.vertex_array(program, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
-def surf_to_texture(surface):
-    texture = ctx.texture(surface.get_size(), components=4)
-    texture.filter = (moderngl.NEAREST, moderngl.NEAREST)
-    texture.swizzle = 'BGRA'
-    texture.write(surface.get_view('1'))
-    return texture
+# Font
+font = pygame.font.Font(None, 36)
 
+class Spear:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.angle = 0
+        self.speed = 0
+        self.vx = 0
+        self.vy = 0
+        self.thrown = False
+        self.charge_start_time = None
+        self.length = SPEAR_HEIGHT
+        self.charge_value = 0
 
-program['in_vert'] = quad_buffer
+    def start_charging(self):
+        self.charge_start_time = time.time()
 
-time = 0
+    def charge(self):
+        if self.charge_start_time:
+            elapsed_time = time.time() - self.charge_start_time
+            self.speed = min(SPEAR_MAX_SPEED, SPEAR_MAX_SPEED * (elapsed_time / CHARGE_TIME))
+            self.length = SPEAR_HEIGHT + (SPEAR_HEIGHT * 3 * (elapsed_time / CHARGE_TIME))  # Stretching effect
+            self.charge_value = min(100, int(100 * (elapsed_time / CHARGE_TIME)))  # Max charge value of 100
+            if elapsed_time >= CHARGE_TIME:
+                self.throw()
 
-while True:
-    display.fill((0, 0, 0))
-    display.blit(img, pygame.mouse.get_pos())
-    
-    time += 1
-    
+    def follow_cursor(self, cursor_x, cursor_y):
+        self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
+
+    def throw(self):
+        self.vx = math.cos(math.radians(self.angle)) * self.speed
+        self.vy = -math.sin(math.radians(self.angle)) * self.speed
+        self.thrown = True
+
+    def update(self):
+        if self.thrown:
+            self.x += self.vx
+            self.y += self.vy
+            # Gravity effect
+            self.vy += 0.5
+
+    def draw(self, screen):
+        spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
+        spear_surface.fill(SPEAR_COLOR)
+        rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
+        screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
+
+def draw_character(screen):
+    pygame.draw.circle(screen, CHARACTER_COLOR, CHARACTER_POS, CHARACTER_RADIUS)
+
+def apply_zoom(surface, scale):
+    width, height = surface.get_size()
+    zoomed_surface = pygame.transform.smoothscale(surface, (int(width * scale), int(height * scale)))
+    return zoomed_surface
+
+def handle_events(spear):
+    global zoom_level
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            return False
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and spear is None:
+            spear = Spear(CHARACTER_POS[0] + 30, CHARACTER_POS[1] - 30)
+            spear.start_charging()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and spear and not spear.thrown:
+            spear.throw()
+            zoom_level = 1.0
 
-    frame_tex = surf_to_texture(display)
-    frame_tex.use(0)
-    program['tex'] = 0
-    render_object.render(mode=moderngl.TRIANGLE_STRIP)
+    # Keyboard controls for player character movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        CHARACTER_POS[0] -= CHARACTER_SPEED
+    if keys[pygame.K_RIGHT]:
+        CHARACTER_POS[0] += CHARACTER_SPEED
 
-    pygame.display.flip()
-    frame_tex.release()
-    clock.tick(60)
+    return spear, True
+
+def main():
+    global zoom_level
+
+    running = True
+    spear = None
+    charge_indicator_width = 0
+    while running:
+        cursor_x, cursor_y = pygame.mouse.get_pos()
+        spear, running = handle_events(spear)
+
+        screen.fill(WHITE)
+        draw_character(screen)
+
+        if spear:
+            if not spear.thrown:
+                spear.follow_cursor(cursor_x, cursor_y)
+                spear.charge()
+                charge_indicator_width = int((spear.charge_value / 100) * SCREEN_WIDTH)
+                # Display charge value
+                charge_text = font.render(f"Charge: {spear.charge_value}", True, BLACK)
+                screen.blit(charge_text, (10, SCREEN_HEIGHT - 60))
+            spear.update()
+            spear.draw(screen)
+            if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH):
+                spear = None
+                charge_indicator_width = 0
+
+        # Draw charge indicator
+        pygame.draw.rect(screen, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
+
+        # Apply zoom effect
+        zoomed_screen = apply_zoom(screen, zoom_level)
+        screen.blit(zoomed_screen, (0, 0))
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
