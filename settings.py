@@ -20,6 +20,7 @@ SPEAR_WIDTH = 5
 SPEAR_HEIGHT = 50
 SPEAR_MAX_SPEED = 50
 CHARGE_TIME = 1.5  # Charge time in seconds
+CHARGE_VALUE_MAX = 100
 
 # Zoom properties
 ZOOM_SCALE = 1.1  # Maximum zoom scale
