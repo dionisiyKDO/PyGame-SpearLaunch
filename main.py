@@ -16,6 +16,7 @@ pygame.display.set_caption("Flying Spear")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 
+
 class Spear:
     def __init__(self, x, y):
         self.x = x
@@ -53,8 +54,7 @@ class Spear:
         if self.thrown:
             self.x += self.vx
             self.y += self.vy
-            # Gravity effect
-            self.vy += 0.5
+
 
     def draw(self, screen):
         spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
@@ -85,10 +85,14 @@ def handle_events(spear):
 
     # Keyboard controls for player character movement
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
+    if keys[pygame.K_a]:
         CHARACTER_POS[0] -= CHARACTER_SPEED
-    if keys[pygame.K_RIGHT]:
+    if keys[pygame.K_d]:
         CHARACTER_POS[0] += CHARACTER_SPEED
+    if keys[pygame.K_w]:
+        CHARACTER_POS[1] -= CHARACTER_SPEED
+    if keys[pygame.K_s]:
+        CHARACTER_POS[1] += CHARACTER_SPEED
 
     return spear, True
 
@@ -115,7 +119,7 @@ def main():
                 screen.blit(charge_text, (10, SCREEN_HEIGHT - 60))
             spear.update()
             spear.draw(screen)
-            if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH):
+            if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH or spear.y < 0 or spear.x < 0):
                 spear = None
                 charge_indicator_width = 0
 

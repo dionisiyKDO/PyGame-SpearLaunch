@@ -11,14 +11,14 @@ FPS = 60
 # Main character properties
 CHARACTER_POS = [100, SCREEN_HEIGHT - 100]  # Changed to list for mutable position
 CHARACTER_COLOR = BLACK
-CHARACTER_RADIUS = 5
+CHARACTER_RADIUS = 15
 CHARACTER_SPEED = 5  # Movement speed of the character
 
 # Spear properties
 SPEAR_COLOR = BLACK
 SPEAR_WIDTH = 5
 SPEAR_HEIGHT = 50
-SPEAR_MAX_SPEED = 25
+SPEAR_MAX_SPEED = 50
 CHARGE_TIME = 1.5  # Charge time in seconds
 
 # Zoom properties
