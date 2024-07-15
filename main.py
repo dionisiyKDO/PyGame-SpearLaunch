@@ -58,30 +58,38 @@ class Spear:
     def follow_cursor(self, cursor_x, cursor_y):
         self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
 
-    def throw(self):
-        self.vx = math.cos(math.radians(self.angle)) * self.speed
-        self.vy = -math.sin(math.radians(self.angle)) * self.speed
-        self.thrown = True
-
-    def update(self):
-        if self.thrown:
-            self.x += self.vx
-            self.y += self.vy
-            
     # def throw(self):
-    #     initial_speed = self.speed * 2.0  # Example: starting with double the speed
-    #     self.vx = math.cos(math.radians(self.angle)) * initial_speed
-    #     self.vy = -math.sin(math.radians(self.angle)) * initial_speed
+    #     self.vx = math.cos(math.radians(self.angle)) * self.speed
+    #     self.vy = -math.sin(math.radians(self.angle)) * self.speed
     #     self.thrown = True
 
     # def update(self):
     #     if self.thrown:
     #         self.x += self.vx
     #         self.y += self.vy
-    #         # Apply deceleration to simulate slowing down over time
-    #         deceleration = 0.1  # Adjust as needed
-    #         self.vx *= (1 - deceleration)
-    #         self.vy *= (1 - deceleration)
+            
+    def throw(self):
+        initial_speed = self.speed * 4.0  # Example: starting with double the speed
+        self.vx = math.cos(math.radians(self.angle)) * initial_speed
+        self.vy = -math.sin(math.radians(self.angle)) * initial_speed
+        self.thrown = True
+
+    def update(self):
+        if self.thrown:
+            if abs(self.vx) > self.speed or abs(self.vy) > self.speed:
+                # Apply deceleration to simulate slowing down after initial impulse
+                deceleration = 0.1  # Adjust as needed
+                self.vx *= (1 - deceleration)
+                self.vy *= (1 - deceleration)
+                print(f"Velocity (vx, vy): ({self.vx}, {self.vy})")
+            else:
+                # Once velocity reaches or falls below self.speed, maintain steady speed
+                self.vx = math.cos(math.radians(self.angle)) * self.speed
+                self.vy = -math.sin(math.radians(self.angle)) * self.speed
+                print(f"Steady Velocity (vx, vy): ({self.vx}, {self.vy})")
+
+            self.x += self.vx
+            self.y += self.vy
 
 
     def draw(self, screen):
