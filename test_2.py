@@ -15,15 +15,16 @@ pygame.display.set_caption("Flying Spear")
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+RED = (255, 0, 0)
 
-# Clock
+# Clock and FPS
 clock = pygame.time.Clock()
 FPS = 60
 
 # Main character properties
 CHARACTER_POS = (100, SCREEN_HEIGHT - 100)
 CHARACTER_COLOR = BLACK
-CHARACTER_RADIUS = 20
+CHARACTER_RADIUS = 5
 
 # Spear properties
 SPEAR_COLOR = BLACK
@@ -37,7 +38,7 @@ ZOOM_SCALE = 1.1  # Maximum zoom scale
 zoom_level = 1.0
 
 # Font
-font = pygame.font.Font(None, 74)
+font = pygame.font.Font(None, 36)
 
 class Spear:
     def __init__(self, x, y):
@@ -50,16 +51,17 @@ class Spear:
         self.thrown = False
         self.charge_start_time = None
         self.length = SPEAR_HEIGHT
+        self.charge_value = 0
 
     def start_charging(self):
         self.charge_start_time = time.time()
 
     def charge(self):
         if self.charge_start_time:
-            current_time = time.time()
-            elapsed_time = current_time - self.charge_start_time
+            elapsed_time = time.time() - self.charge_start_time
             self.speed = min(SPEAR_MAX_SPEED, SPEAR_MAX_SPEED * (elapsed_time / CHARGE_TIME))
             self.length = SPEAR_HEIGHT + (SPEAR_HEIGHT * 3 * (elapsed_time / CHARGE_TIME))  # Stretching effect
+            self.charge_value = min(100, int(100 * (elapsed_time / CHARGE_TIME)))  # Max charge value of 100
             if elapsed_time >= CHARGE_TIME:
                 self.throw()
 
@@ -92,20 +94,29 @@ def apply_zoom(surface, scale):
     zoomed_surface = pygame.transform.smoothscale(surface, (int(width * scale), int(height * scale)))
     return zoomed_surface
 
+def handle_events(spear):
+    global zoom_level
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            return False
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and spear is None:
+            spear = Spear(CHARACTER_POS[0] + 30, CHARACTER_POS[1] - 30)
+            spear.start_charging()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and spear and not spear.thrown:
+            spear.throw()
+            zoom_level = 1.0
+    return spear, True
+
 def main():
     global zoom_level
 
     running = True
     spear = None
+    charge_indicator_width = 0
     while running:
         cursor_x, cursor_y = pygame.mouse.get_pos()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-            if event.type == pygame.MOUSEBUTTONDOWN and spear is None:
-                spear = Spear(CHARACTER_POS[0] + 30, CHARACTER_POS[1] - 30)
-                spear.start_charging()
+        spear, running = handle_events(spear)
 
         screen.fill(WHITE)
         draw_character(screen)
@@ -114,13 +125,18 @@ def main():
             if not spear.thrown:
                 spear.follow_cursor(cursor_x, cursor_y)
                 spear.charge()
-                elapsed_time = time.time() - spear.charge_start_time
-                zoom_level = 1.0 + (ZOOM_SCALE - 1.0) * min(elapsed_time / CHARGE_TIME, 1)
+                charge_indicator_width = int((spear.charge_value / 100) * SCREEN_WIDTH)
+                # Display charge value
+                charge_text = font.render(f"Charge: {spear.charge_value}", True, BLACK)
+                screen.blit(charge_text, (10, SCREEN_HEIGHT - 60))
             spear.update()
             spear.draw(screen)
             if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH):
                 spear = None
-                zoom_level = 1.0
+                charge_indicator_width = 0
+
+        # Draw charge indicator
+        pygame.draw.rect(screen, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
 
         # Apply zoom effect
         zoomed_screen = apply_zoom(screen, zoom_level)
@@ -131,6 +147,7 @@ def main():
 
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()
