@@ -219,13 +219,12 @@ class Spear:
             self.update_buffer()
             self.render_spear = ctx.vertex_array(self.spear_shader, [(self.buffer, '2f', 'in_vert')])
 
-
     def draw(self, screen):
         if self.destroyed and time.time() - self.destroy_time <= 1:
             pygame.draw.circle(screen, GREY, (int(self.x), int(self.y)), 10)
         elif not self.destroyed:
             self.render_spear.render(mode=moderngl.TRIANGLE_STRIP)
-            
+
     def destroy(self):
         self.destroyed = True
         self.destroy_time = time.time()
@@ -314,6 +313,9 @@ def main():
                     spear = None
         # endregion
 
+        if spear and not spear.thrown:
+            draw_charge_indicator(display, spear.charge_value)
+                
         # Render objects using ModernGL
         frame_tex = surf_to_texture(display)
         frame_tex.use()
