@@ -19,7 +19,8 @@ pygame.display.set_caption("Flying Spear")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 
-# background
+# Background shader
+# region
 quad_buffer = ctx.buffer(np.array([
     # position (x, y), uv coords (x, y)
     -1.0,  1.0, 0.0, 0.0, 
@@ -40,24 +41,21 @@ scene_shader = ctx.program(
     ''',
     fragment_shader = '''
     #version 330 core
-
     uniform sampler2D tex;
-
     in vec2 uv;
     out vec4 out_color;
-
     void main() {
         out_color = vec4(
-            texture(tex, uv).r, 
-            texture(tex, uv).g * 0.5, 
-            texture(tex, uv).b * 0.5, 
+            texture(tex, uv).r * 0.9, 
+            texture(tex, uv).g * 0.9, 
+            texture(tex, uv).b * 0.9, 
             1.0);
     }
-
     '''
 )
 render_object = ctx.vertex_array(scene_shader, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
-scene_shader['in_vert'] = quad_buffer
+# endregion
+
 
 def surf_to_texture(surface):
     texture         = ctx.texture(surface.get_size(), components=4)
@@ -65,6 +63,9 @@ def surf_to_texture(surface):
     texture.swizzle = 'BGRA'
     texture.write(surface.get_view('1'))
     return texture
+
+
+
 
 
 class Character:
@@ -79,12 +80,12 @@ class Character:
     def draw(self, display):
         pygame.draw.circle(display, CHARACTER_COLOR, (int(self.x), int(self.y)), CHARACTER_RADIUS)
 
-
 class Spear:
     def __init__(self, character):
         self.x = character.x + 30
         self.y = character.y - 30
-        self.angle = 0
+        cursor_x, cursor_y = pygame.mouse.get_pos()
+        self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
         self.speed = 0
         self.vx = 0
         self.vy = 0
@@ -94,6 +95,65 @@ class Spear:
         self.charge_value = 0
         self.destroyed = False
         self.destroy_time = None
+        
+        self.coords = self.calculate_position()
+        self.buffer = None
+        self.update_buffer()
+        
+        self.spear_shader = ctx.program(
+            vertex_shader='''
+            #version 330 core
+            in vec2 in_vert;
+            void main() {
+                gl_Position = vec4(in_vert, 0.0, 1.0);
+            }
+            ''',
+            fragment_shader='''
+            #version 330 core
+            out vec4 out_color;
+            void main() {
+                out_color = vec4(
+                    1.0 * 0.99, // R
+                    1.0 * 0.1, // G
+                    1.0 * 0.1, // B
+                    1.0);
+            }
+            '''
+        )
+        
+        self.render_spear = ctx.vertex_array(self.spear_shader, [(self.buffer, '2f', 'in_vert')])
+
+    def update_buffer(self):
+        ndc_coords = []
+        for i in range(0, len(self.coords), 2):
+            x, y = self.coords[i:i+2]
+            ndc_x = 2.0 * x / SCREEN_WIDTH - 1.0
+            ndc_y = 2.0 * y / SCREEN_HEIGHT - 1.0 
+            ndc_coords.extend([ndc_x, -ndc_y])
+        print(ndc_coords, '----', self.angle)
+        self.buffer = ctx.buffer(np.array(ndc_coords, dtype=np.float32))
+
+    def calculate_position(self):
+        half_width = SPEAR_WIDTH / 2.0
+        half_height = self.length / 2.0
+        angle_rad = math.radians(self.angle)
+        
+        corner1_x = self.x + half_width * math.cos(angle_rad) - half_height * math.sin(angle_rad)
+        corner1_y = self.y + half_width * math.sin(angle_rad) + half_height * math.cos(angle_rad)
+        
+        corner2_x = self.x - half_width * math.cos(angle_rad) - half_height * math.sin(angle_rad)
+        corner2_y = self.y - half_width * math.sin(angle_rad) + half_height * math.cos(angle_rad)
+        
+        corner3_x = self.x - half_width * math.cos(angle_rad) + half_height * math.sin(angle_rad)
+        corner3_y = self.y - half_width * math.sin(angle_rad) - half_height * math.cos(angle_rad)
+        
+        corner4_x = self.x + half_width * math.cos(angle_rad) + half_height * math.sin(angle_rad)
+        corner4_y = self.y + half_width * math.sin(angle_rad) - half_height * math.cos(angle_rad)
+        
+        return [corner1_x, corner1_y, 
+                corner2_x, corner2_y, 
+                corner3_x, corner3_y, 
+                corner4_x, corner4_y]
 
     def start_charging(self):
         self.charge_start_time = time.time()
@@ -106,12 +166,16 @@ class Spear:
             self.charge_value = min(CHARGE_VALUE_MAX, int(100 * (elapsed_time / CHARGE_TIME)))  # Max charge value of 100
             if elapsed_time >= CHARGE_TIME:
                 self.throw()
+            self.coords = self.calculate_position()
+            self.update_buffer()
+            self.render_spear = ctx.vertex_array(self.spear_shader, [(self.buffer, '2f', 'in_vert')])
 
-    def follow_cursor(self, cursor_x, cursor_y):
+    def follow_cursor(self):
+        cursor_x, cursor_y = pygame.mouse.get_pos()
         self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
 
     def throw(self):
-        initial_speed = self.speed * 4.0  # Example: starting with double the speed
+        initial_speed = self.speed * SPEAR_IMPULSE
         self.vx = math.cos(math.radians(self.angle)) * initial_speed
         self.vy = -math.sin(math.radians(self.angle)) * initial_speed
         self.thrown = True
@@ -120,30 +184,30 @@ class Spear:
         if self.thrown and not self.destroyed:
             if abs(self.vx) > self.speed or abs(self.vy) > self.speed:
                 # Apply deceleration to simulate slowing down after initial impulse
-                deceleration = 0.1  # Adjust as needed
+                deceleration = 0.1
                 self.vx *= (1 - deceleration)
                 self.vy *= (1 - deceleration)
             else:
                 # Once velocity reaches or falls below self.speed, maintain steady speed
-                self.vx = math.cos(math.radians(self.angle)) * self.speed
+                self.vx =  math.cos(math.radians(self.angle)) * self.speed
                 self.vy = -math.sin(math.radians(self.angle)) * self.speed
 
             self.x += self.vx
             self.y += self.vy
+            self.coords = self.calculate_position()
+            self.update_buffer()
+            self.render_spear = ctx.vertex_array(self.spear_shader, [(self.buffer, '2f', 'in_vert')])
+
 
     def draw(self, screen):
         if self.destroyed and time.time() - self.destroy_time <= 1:
             pygame.draw.circle(screen, GREY, (int(self.x), int(self.y)), 10)
         elif not self.destroyed:
-            spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
-            spear_surface.fill(SPEAR_COLOR)
-            rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
-            screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
-        
+            self.render_spear.render(mode=moderngl.TRIANGLE_STRIP)
+            
     def destroy(self):
         self.destroyed = True
         self.destroy_time = time.time()
-
 
 class Dummy:
     def __init__(self, x, y):
@@ -167,6 +231,8 @@ class Dummy:
                 spear.destroy()
                 return True
         return False
+
+
 
 
 def draw_charge_indicator(display, charge_value):
@@ -214,6 +280,7 @@ def main():
         display.fill(WHITE)
         character.draw(display)
 
+        
         # Draw dummies + check collisions
         # region
         if all(dummy.hit == True for dummy in dummies):
@@ -228,13 +295,17 @@ def main():
                     spear = None
         # endregion
 
+        # Render objects using ModernGL
+        frame_tex = surf_to_texture(display)
+        frame_tex.use()
+        render_object.render(mode=moderngl.TRIANGLE_STRIP)
+        
         # Draw spear charge indicator + check if thrown out of bounds
         # region
         if spear:
             if not spear.thrown:
                 # If spear is created but not thrown, follow cursor
-                cursor_x, cursor_y = pygame.mouse.get_pos()
-                spear.follow_cursor(cursor_x, cursor_y)
+                spear.follow_cursor()
                 spear.charge()
                 # draw charge indicator
                 draw_charge_indicator(display, spear.charge_value)
@@ -246,12 +317,6 @@ def main():
                 spear = None
         # endregion
 
-        # Render objects using ModernGL
-        frame_tex = surf_to_texture(display)
-        frame_tex.use(0)
-        scene_shader['tex'] = 0
-        render_object.render(mode=moderngl.TRIANGLE_STRIP)
-        
         pygame.display.flip()
         frame_tex.release()
         clock.tick(FPS)
