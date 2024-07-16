@@ -134,26 +134,47 @@ class Spear:
         self.buffer = ctx.buffer(np.array(ndc_coords, dtype=np.float32))
 
     def calculate_position(self):
-        half_width = SPEAR_WIDTH / 2.0
-        half_height = self.length / 2.0
-        angle_rad = math.radians(self.angle)
+        # I swear, i dont know whats with half_height and half_width, whats with corners, but this works how it should be. 
+        # Im sure i fucked up something, not a pro in maths, all math is made through ChatGPT, so there is an error for sure
+        half_height = SPEAR_WIDTH / 2.0
+        half_width = self.length / 2.0
+        angle_rad = -math.radians(self.angle)  # Positive number -> cursor clockwise, spear rotates counterclockwise. So angle should be negative.
         
-        corner1_x = self.x + half_width * math.cos(angle_rad) - half_height * math.sin(angle_rad)
-        corner1_y = self.y + half_width * math.sin(angle_rad) + half_height * math.cos(angle_rad)
+        cos_angle = math.cos(angle_rad)
+        sin_angle = math.sin(angle_rad)
         
-        corner2_x = self.x - half_width * math.cos(angle_rad) - half_height * math.sin(angle_rad)
-        corner2_y = self.y - half_width * math.sin(angle_rad) + half_height * math.cos(angle_rad)
+        # Calculate corner offsets
+        offset1_x = half_width * cos_angle - half_height * sin_angle
+        offset1_y = half_width * sin_angle + half_height * cos_angle
         
-        corner3_x = self.x - half_width * math.cos(angle_rad) + half_height * math.sin(angle_rad)
-        corner3_y = self.y - half_width * math.sin(angle_rad) - half_height * math.cos(angle_rad)
+        offset2_x = -half_width * cos_angle - half_height * sin_angle
+        offset2_y = -half_width * sin_angle + half_height * cos_angle
         
-        corner4_x = self.x + half_width * math.cos(angle_rad) + half_height * math.sin(angle_rad)
-        corner4_y = self.y + half_width * math.sin(angle_rad) - half_height * math.cos(angle_rad)
+        offset3_x = -half_width * cos_angle + half_height * sin_angle
+        offset3_y = -half_width * sin_angle - half_height * cos_angle
         
-        return [corner1_x, corner1_y, 
-                corner2_x, corner2_y, 
-                corner3_x, corner3_y, 
-                corner4_x, corner4_y]
+        offset4_x = half_width * cos_angle + half_height * sin_angle
+        offset4_y = half_width * sin_angle - half_height * cos_angle
+        
+        # Calculate actual corner positions
+        corner1_x = self.x + offset1_x
+        corner1_y = self.y + offset1_y
+        
+        corner2_x = self.x + offset2_x
+        corner2_y = self.y + offset2_y
+        
+        corner3_x = self.x + offset3_x
+        corner3_y = self.y + offset3_y
+        
+        corner4_x = self.x + offset4_x
+        corner4_y = self.y + offset4_y
+        
+        return [
+            corner1_x, corner1_y, 
+            corner2_x, corner2_y, 
+            corner4_x, corner4_y,
+            corner3_x, corner3_y, 
+        ]
 
     def start_charging(self):
         self.charge_start_time = time.time()
@@ -227,7 +248,7 @@ class Dummy:
             if distance <= max_distance:
                 self.hit = True
                 self.color = HIT_COLOR
-                print("Dummy hit!")
+                # print("Dummy hit!")
                 spear.destroy()
                 return True
         return False
@@ -242,8 +263,6 @@ def draw_charge_indicator(display, charge_value):
     display.blit(charge_text, (10, SCREEN_HEIGHT - 60))
 
 def handle_events(character, spear=None):
-    global zoom_level
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             return False
