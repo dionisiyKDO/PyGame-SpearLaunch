@@ -2,6 +2,7 @@ import sys
 import math
 import time
 import random
+from array import array
 
 from settings import *
 
@@ -19,15 +20,15 @@ pygame.display.set_caption("Flying Spear")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 
-# background
-quad_buffer = ctx.buffer(np.array([
+
+quad_buffer = ctx.buffer(array('f', [
     # position (x, y), uv coords (x, y)
     -1.0,  1.0, 0.0, 0.0, 
      1.0,  1.0, 1.0, 0.0, 
     -1.0, -1.0, 0.0, 1.0, 
      1.0, -1.0, 1.0, 1.0, 
-], dtype=np.float32))
-scene_shader = ctx.program(
+]))
+shader        = ctx.program(
     vertex_shader = '''
     #version 330 core
     in vec2 in_vert;
@@ -37,7 +38,9 @@ scene_shader = ctx.program(
         gl_Position = vec4(in_vert, 0.0, 1.0);
         uv = in_uv;
     }
+
     ''',
+    
     fragment_shader = '''
     #version 330 core
 
@@ -47,17 +50,13 @@ scene_shader = ctx.program(
     out vec4 out_color;
 
     void main() {
-        out_color = vec4(
-            texture(tex, uv).r, 
-            texture(tex, uv).g * 0.5, 
-            texture(tex, uv).b * 0.5, 
-            1.0);
+        out_color = texture(tex, uv);
     }
 
     '''
 )
-render_object = ctx.vertex_array(scene_shader, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
-scene_shader['in_vert'] = quad_buffer
+render_object = ctx.vertex_array(shader, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
+shader['in_vert'] = quad_buffer
 
 def surf_to_texture(surface):
     texture         = ctx.texture(surface.get_size(), components=4)
@@ -65,6 +64,8 @@ def surf_to_texture(surface):
     texture.swizzle = 'BGRA'
     texture.write(surface.get_view('1'))
     return texture
+
+
 
 
 class Character:
@@ -76,9 +77,31 @@ class Character:
         self.x += dx
         self.y += dy
 
-    def draw(self, display):
-        pygame.draw.circle(display, CHARACTER_COLOR, (int(self.x), int(self.y)), CHARACTER_RADIUS)
+    def draw(self, screen):
+        pygame.draw.circle(screen, CHARACTER_COLOR, (int(self.x), int(self.y)), CHARACTER_RADIUS)
 
+class Dummy:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = DUMMY_RADIUS
+        self.color = DUMMY_COLOR
+        self.hit = False
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+
+    def check_collision(self, spear):
+        if not self.hit and spear.thrown and not spear.destroyed:
+            distance = math.sqrt((self.x - spear.x) ** 2 + (self.y - spear.y) ** 2)
+            max_distance = spear.speed + self.radius
+            if distance <= max_distance:
+                self.hit = True
+                self.color = HIT_COLOR
+                print("Dummy hit!")
+                spear.destroy()
+                return True
+        return False
 
 class Spear:
     def __init__(self, character):
@@ -94,6 +117,54 @@ class Spear:
         self.charge_value = 0
         self.destroyed = False
         self.destroy_time = None
+        
+        
+        self.spear_shader  = ctx.program(
+            vertex_shader = '''
+            #version 330 core
+            in vec2 in_vert;
+            in vec2 in_uv;
+            out vec2 uv;
+            void main() {
+                gl_Position = vec4(in_vert, 0.0, 1.0);
+                uv = in_uv;
+            }
+
+            ''',
+            fragment_shader = '''
+            #version 330 core
+
+            uniform sampler2D tex;
+
+            in vec2 uv;
+            out vec4 out_color;
+
+            void main() {
+                out_color = vec4(
+                    texture(tex, uv).r, 
+                    texture(tex, uv).g * 0.0, 
+                    texture(tex, uv).b * 0.0, 
+                    1.0);
+            }
+            '''
+        )
+        
+        hw, hh = SPEAR_WIDTH / 2.0, SPEAR_HEIGHT / 2.0
+        angle_rad = math.radians(self.angle)
+        dx = hw * math.cos(angle_rad)
+        dy = hw * math.sin(angle_rad)
+        
+        vertex_data = [
+            float(self.x - dx), float(self.y - dy),
+            float(self.x + dy), float(self.y - dx),
+            float(self.x + dx), float(self.y + dy),
+            float(self.x - dy), float(self.y + dx)
+        ]
+        
+        vertex_data = array('f', vertex_data)
+        self.render_spear  = ctx.vertex_array(self.spear_shader, [(vertex_data, '2f 2f', 'in_vert', 'in_uv')])
+        self.spear_shader['in_vert'] = vertex_data
+
 
     def start_charging(self):
         self.charge_start_time = time.time()
@@ -136,44 +207,23 @@ class Spear:
             pygame.draw.circle(screen, GREY, (int(self.x), int(self.y)), 10)
         elif not self.destroyed:
             spear_surface = pygame.Surface((self.length, SPEAR_WIDTH), pygame.SRCALPHA)
-            spear_surface.fill(SPEAR_COLOR)
-            rotated_spear = pygame.transform.rotate(spear_surface, self.angle)
-            screen.blit(rotated_spear, rotated_spear.get_rect(center=(self.x, self.y)))
+            spear_tex = surf_to_texture(spear_surface)
+            spear_tex.use(1)
+            self.spear_shader['tex'] = 1
+            self.render_spear.render(mode=moderngl.TRIANGLE_STRIP)
+            spear_tex.release()
         
     def destroy(self):
         self.destroyed = True
         self.destroy_time = time.time()
 
 
-class Dummy:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.radius = DUMMY_RADIUS
-        self.color = DUMMY_COLOR
-        self.hit = False
 
-    def draw(self, display):
-        pygame.draw.circle(display, self.color, (int(self.x), int(self.y)), self.radius)
-
-    def check_collision(self, spear):
-        if not self.hit and spear.thrown and not spear.destroyed:
-            distance = math.sqrt((self.x - spear.x) ** 2 + (self.y - spear.y) ** 2)
-            max_distance = spear.speed + self.radius
-            if distance <= max_distance:
-                self.hit = True
-                self.color = HIT_COLOR
-                print("Dummy hit!")
-                spear.destroy()
-                return True
-        return False
-
-
-def draw_charge_indicator(display, charge_value):
+def draw_charge_indicator(screen, charge_value):
     charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
-    pygame.draw.rect(display, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
+    pygame.draw.rect(screen, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
     charge_text = font.render(f"Charge: {charge_value}", True, BLACK)
-    display.blit(charge_text, (10, SCREEN_HEIGHT - 60))
+    screen.blit(charge_text, (10, SCREEN_HEIGHT - 60))
 
 def handle_events(character, spear=None):
     global zoom_level
@@ -203,17 +253,19 @@ def handle_events(character, spear=None):
 
 
 def main():
+    global zoom_level
+
     character = Character(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
     dummies   = [Dummy(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_DUMMIES)]
     spear     = None
-
+    
     running = True
     while running:
         spear, running = handle_events(character, spear)
 
         display.fill(WHITE)
         character.draw(display)
-
+        
         # Draw dummies + check collisions
         # region
         if all(dummy.hit == True for dummy in dummies):
@@ -246,19 +298,20 @@ def main():
                 spear = None
         # endregion
 
+
+
         # Render objects using ModernGL
         frame_tex = surf_to_texture(display)
         frame_tex.use(0)
-        scene_shader['tex'] = 0
+        shader['tex'] = 0
         render_object.render(mode=moderngl.TRIANGLE_STRIP)
-        
+
         pygame.display.flip()
         frame_tex.release()
         clock.tick(FPS)
 
     pygame.quit()
     sys.exit()
-
 
 if __name__ == "__main__":
     main()
