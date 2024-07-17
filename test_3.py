@@ -9,8 +9,6 @@ import pygame
 import moderngl
 import numpy as np
 
-
-
 # TODO
 # - Implement enemy HP
 # - Implement difficulty system
@@ -39,9 +37,6 @@ import numpy as np
 # - Milestone rewards (e.g., hitting 100 enemies)
 
 
-
-
-
 pygame.init()
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
@@ -52,10 +47,7 @@ pygame.display.set_caption("Flying Spear")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 
-# Background shader
-# region
 quad_buffer = ctx.buffer(np.array([
-    # position (x, y), uv coords (x, y)
     -1.0,  1.0, 0.0, 0.0, 
      1.0,  1.0, 1.0, 0.0, 
     -1.0, -1.0, 0.0, 1.0, 
@@ -87,8 +79,6 @@ scene_shader = ctx.program(
     '''
 )
 render_object = ctx.vertex_array(scene_shader, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
-# endregion
-
 
 def surf_to_texture(surface):
     texture         = ctx.texture(surface.get_size(), components=4)
@@ -170,12 +160,11 @@ class Spear:
         # Im sure i fucked up something, not a pro in maths, all math is made through ChatGPT, so there is an error for sure
         half_height = SPEAR_WIDTH / 2.0
         half_width = self.length / 2.0
-        angle_rad = -math.radians(self.angle)  # Positive number -> cursor clockwise, spear rotates counterclockwise. So angle should be negative.
+        angle_rad = -math.radians(self.angle) 
         
         cos_angle = math.cos(angle_rad)
         sin_angle = math.sin(angle_rad)
         
-        # Calculate corner offsets
         offset1_x = half_width * cos_angle - half_height * sin_angle
         offset1_y = half_width * sin_angle + half_height * cos_angle
         
@@ -188,7 +177,6 @@ class Spear:
         offset4_x = half_width * cos_angle + half_height * sin_angle
         offset4_y = half_width * sin_angle - half_height * cos_angle
         
-        # Calculate actual corner positions
         corner1_x = self.x + offset1_x
         corner1_y = self.y + offset1_y
         
@@ -236,12 +224,10 @@ class Spear:
     def update(self):
         if self.thrown and not self.destroyed:
             if abs(self.vx) > self.speed or abs(self.vy) > self.speed:
-                # Apply deceleration to simulate slowing down after initial impulse
                 deceleration = 0.1
                 self.vx *= (1 - deceleration)
                 self.vy *= (1 - deceleration)
             else:
-                # Once velocity reaches or falls below self.speed, maintain steady speed
                 self.vx =  math.cos(math.radians(self.angle)) * self.speed
                 self.vy = -math.sin(math.radians(self.angle)) * self.speed
 
@@ -279,7 +265,6 @@ class Dummy:
             if distance <= max_distance:
                 self.hit = True
                 self.color = HIT_COLOR
-                # print("Dummy hit!")
                 spear.destroy()
                 return True
         return False
@@ -330,46 +315,32 @@ def main():
         display.fill(WHITE)
         character.draw(display)
 
-        
-        # Draw dummies + check collisions
-        # region
         if all(dummy.hit == True for dummy in dummies):
-            # All dummies have been hit, reset them
             dummies = [Dummy(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_DUMMIES)]
         for dummy in dummies:
-            # draw dummy
             dummy.draw(display)
             if spear and spear.thrown:
-                # check if dummy has been hit
                 if dummy.check_collision(spear):
                     spear = None
-        # endregion
 
         if spear and not spear.thrown:
             draw_charge_indicator(display, spear.charge_value)
                 
-        # Render objects using ModernGL
         frame_tex = surf_to_texture(display)
         frame_tex.use()
         render_object.render(mode=moderngl.TRIANGLE_STRIP)
         
-        # Draw spear charge indicator + check if thrown out of bounds
-        # region
         if spear:
             if not spear.thrown:
-                # If spear is created but not thrown, follow cursor
                 spear.follow_cursor()
                 spear.charge()
-                # draw charge indicator
                 draw_charge_indicator(display, spear.charge_value)
-            # draw spear
+
             spear.update()
             spear.draw(display)
             if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH or spear.y < 0 or spear.x < 0):
-                # if spear is thrown and out of bounds, destroy
-                spear = None
-        # endregion
 
+                spear = None
         pygame.display.flip()
         frame_tex.release()
         clock.tick(FPS)
