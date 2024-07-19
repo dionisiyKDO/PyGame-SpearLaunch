@@ -47,7 +47,7 @@ class Game:
         pygame.init()
         pygame.display.set_caption('Flying Spear')
         self.clock = pygame.time.Clock()
-        self.font  = pygame.font.Font(None, 36)
+        self.font  = pygame.font.Font(FONT_NAME, FONT_SIZE)
         self.running = True
         
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
@@ -55,7 +55,7 @@ class Game:
         
         self.ctx = moderngl.create_context()
         
-        self.enemies = [Enemie(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_ENEMIES)]
+        self.enemies = self.create_enemies()
         self.character = Character(*CHARACTER_POS)
         self.spears = []
         
@@ -97,6 +97,8 @@ class Game:
         )
         self.render_object = self.ctx.vertex_array(scene_shader, [(quad_buffer, '2f 2f', 'in_vert', 'in_uv')])
 
+    def create_enemies(self, NUM_ENEMIES=NUM_ENEMIES):
+        return [Enemie(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50), random.randint(5, 150)) for _ in range(NUM_ENEMIES)]
 
     def run(self):
         while self.running:
@@ -135,8 +137,8 @@ class Game:
             dy =  CHARACTER_SPEED * delta_time
         self.character.move(dx, dy)
 
-        if all(enemy.hit == True for enemy in self.enemies): # All self.enemies have been hit -> reset them
-            self.enemies = [Enemie(random.randint(50, SCREEN_WIDTH - 50), random.randint(50, SCREEN_HEIGHT - 50)) for _ in range(NUM_ENEMIES)]
+        if all(enemy.killed == True for enemy in self.enemies): # All self.enemies have been hit -> reset them
+            self.enemies = self.create_enemies()
 
         for spear in self.spears:
             if not spear.thrown:
