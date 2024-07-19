@@ -14,8 +14,13 @@ import moderngl
 import numpy as np
 
 # TODO
-# - Implement enemy HP
+# [1] Add support for multiple spears through LMB RMB, right works, but with bugs
+# 
+# Rewrite every render in moderngl
+# 
+# + Implement enemy HP
 # - Implement difficulty system
+# - Implement score system
 # - Add upgrades
 #    - Advanced upgrades  
 #        - More then one spear at the same time could be launched
@@ -114,14 +119,13 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN: 
-                # TODO: Add support for multiple spears through LMB RMB, right works, but with bugs
+                # TODO: [1]
                 spear = Spear(self.ctx, self.character)
                 self.spears.append(spear)
                 spear.start_charging()
             elif event.type == pygame.MOUSEBUTTONUP:
                 if self.spears:
                     self.spears[-1].throw()
-        
 
     def update(self):
         delta_time = self.clock.get_time() / 10.0
@@ -148,15 +152,24 @@ class Game:
             for enemy in self.enemies:
                 if enemy.check_collision(spear):
                     self.spears.remove(spear)
+                    if enemy.killed == True:
+                        self.character.enemies_killed += 1
                     break
             if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH or spear.y < 0 or spear.x < 0):
                 self.spears.remove(spear)
 
-    def draw_charge_indicator(self, display, charge_value):
-        charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
-        pygame.draw.rect(display, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
-        charge_text = self.font.render(f"Charge: {charge_value}", True, BLACK)
-        display.blit(charge_text, (10, SCREEN_HEIGHT - 60))
+    def draw_ui(self):
+        # draw charge indicator
+        if self.spears:
+            charge_value = self.spears[-1].charge_value
+            charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
+            pygame.draw.rect(self.display, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
+            charge_text = self.font.render(f"Charge: {charge_value}", True, BLACK)
+            self.display.blit(charge_text, (10, SCREEN_HEIGHT - 60))
+        
+        # draw score indicator
+        score_text = self.font.render(f"Score: {self.character.enemies_killed}", True, BLACK)
+        self.display.blit(score_text, (10, 10))
 
     def draw(self):
         self.ctx.clear(1.0, 1.0, 1.0)
@@ -167,8 +180,7 @@ class Game:
         for enemy in self.enemies:
             enemy.draw(self.display)
         
-        if self.spears:
-            self.draw_charge_indicator(self.display, self.spears[-1].charge_value)
+        self.draw_ui()
         
         frame_tex = surf_to_texture(self.ctx, self.display)
         frame_tex.use()

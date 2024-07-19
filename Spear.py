@@ -14,7 +14,7 @@ class Spear:
         self.y = character.y - 30
         cursor_x, cursor_y = pygame.mouse.get_pos()
         self.angle = math.degrees(math.atan2(self.y - cursor_y, cursor_x - self.x))
-        self.speed = 0
+        self.speed = 10
         self.vx = 0
         self.vy = 0
         self.thrown = False
@@ -107,7 +107,7 @@ class Spear:
     def charge(self):
         if self.charge_start_time:
             elapsed_time = time.time() - self.charge_start_time
-            self.speed = min(SPEAR_MAX_SPEED, SPEAR_MAX_SPEED * (elapsed_time / CHARGE_TIME))
+            self.speed = min(SPEAR_MAX_SPEED, max(1, (SPEAR_MAX_SPEED * (elapsed_time / CHARGE_TIME))))
             self.length = SPEAR_HEIGHT + (SPEAR_HEIGHT * 3 * (elapsed_time / CHARGE_TIME))  # Stretching effect
             self.charge_value = min(CHARGE_VALUE_MAX, int(100 * (elapsed_time / CHARGE_TIME)))  # Max charge value of 100
             if elapsed_time >= CHARGE_TIME:

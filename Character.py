@@ -6,6 +6,7 @@ class Character:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.enemies_killed = 0
 
     def move(self, dx, dy):
         self.x += dx
