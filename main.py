@@ -150,6 +150,12 @@ class Game:
             if spear.thrown and (spear.y > SCREEN_HEIGHT or spear.x > SCREEN_WIDTH or spear.y < 0 or spear.x < 0):
                 self.spears.remove(spear)
 
+    def draw_charge_indicator(self, display, charge_value):
+        charge_indicator_width = int((charge_value / 100) * SCREEN_WIDTH)
+        pygame.draw.rect(display, RED, (0, SCREEN_HEIGHT - 20, charge_indicator_width, 20))
+        charge_text = self.font.render(f"Charge: {charge_value}", True, BLACK)
+        display.blit(charge_text, (10, SCREEN_HEIGHT - 60))
+
     def draw(self):
         self.ctx.clear(1.0, 1.0, 1.0)
         # self.ctx.enable(moderngl.BLEND)
@@ -158,6 +164,9 @@ class Game:
         self.character.draw(self.display)
         for enemy in self.enemies:
             enemy.draw(self.display)
+        
+        if self.spears:
+            self.draw_charge_indicator(self.display, self.spears[-1].charge_value)
         
         frame_tex = surf_to_texture(self.ctx, self.display)
         frame_tex.use()
