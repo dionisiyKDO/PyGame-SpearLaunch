@@ -55,16 +55,20 @@ class Game:
         self.font  = pygame.font.Font(FONT_NAME, FONT_SIZE)
         self.running = True
         
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.OPENGL | pygame.DOUBLEBUF)
+        # Set up OpenGL context
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT),pygame.OPENGL | pygame.DOUBLEBUF)
         self.display = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         
+        # Create ModernGL context
         self.ctx = moderngl.create_context()
+        self.ctx.enable(moderngl.BLEND)
+        self.ctx.blend_func = moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA
         
+        # Create game objects
         self.enemies = self.create_enemies()
         self.character = Character(self.ctx, *CHARACTER_POS)
         self.spears = []
         
-        self.render_object = None
         self.init_shaders()
         
     def init_shaders(self):
@@ -172,26 +176,30 @@ class Game:
         self.display.blit(score_text, (10, 10))
 
     def draw(self):
+        # Clear screen
         self.ctx.clear(1.0, 1.0, 1.0)
-        # self.ctx.enable(moderngl.BLEND)
+        
+        # Draw to pygame surface first
         self.display.fill(WHITE)
         
-        self.character.draw(self.display)
+        # Draw enemies (still using Pygame for now)
         for enemy in self.enemies:
             enemy.draw(self.display)
         
+        # Draw UI
         self.draw_ui()
         
+        # Convert Pygame surface to texture and render it
         frame_tex = surf_to_texture(self.ctx, self.display)
-        frame_tex.use()
+        frame_tex.use(0)
         self.render_object.render(mode=moderngl.TRIANGLE_STRIP)
         
+        # Draw ModernGL objects
+        self.character.draw(self.display)
         for spear in self.spears:
             spear.draw()
-            
-        pygame.display.flip()
-        self.clock.tick(FPS)
         
+        pygame.display.flip()
         frame_tex.release()
         
 
