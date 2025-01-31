@@ -5,7 +5,7 @@ import time
 import pygame
 import moderngl
 import numpy as np
-from settings import *
+from app.settings import *
 
 class Spear:
     def __init__(self, ctx, character):

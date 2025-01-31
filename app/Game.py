@@ -3,11 +3,11 @@ import math
 import time
 import random
 
-from settings import *
-from Character import Character
-from Spear import Spear
-from Enemie import Enemie
-from utils import surf_to_texture
+from app.settings import *
+from app.Character import Character
+from app.Spear import Spear
+from app.Enemie import Enemie
+from app.utils import surf_to_texture
 
 import pygame
 import moderngl
@@ -61,7 +61,7 @@ class Game:
         self.ctx = moderngl.create_context()
         
         self.enemies = self.create_enemies()
-        self.character = Character(*CHARACTER_POS)
+        self.character = Character(self.ctx, *CHARACTER_POS)
         self.spears = []
         
         self.render_object = None

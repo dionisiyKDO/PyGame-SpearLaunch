@@ -1,6 +1,6 @@
 import pygame
 import math
-from settings import *
+from app.settings import *
 
 class Enemie:
     def __init__(self, x, y, hp):
